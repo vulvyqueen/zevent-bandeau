@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<title>Bandeau ZEvent</title>
+<link rel="preconnect" href="https://api.fontshare.com">
+<link href="https://api.fontshare.com/v2/css?f[]=switzer@400,500,600,700,800&display=swap" rel="stylesheet">
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: transparent;
+    overflow: hidden;
+    width: 100vw;
+    height: 100vh;
+    font-family: 'Switzer', 'Segoe UI', Arial, sans-serif;
+  }
+
+  #ticker-bar {
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 56px;
+    background: linear-gradient(90deg, rgba(0,0,0,0.72), rgba(6,20,6,0.72), rgba(0,0,0,0.72));
+    border-top: 3px solid #00bd00;
+    box-shadow: 0 -2px 14px rgba(0, 189, 0, 0.35);
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    box-sizing: border-box;
+  }
+
+  #ticker-scroll {
+    white-space: nowrap;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    align-items: center;
+  }
+
+  #ticker-text {
+    display: inline-block;
+    color: #fff;
+    font-family: 'Switzer', 'Segoe UI', Arial, sans-serif;
+    font-size: 25px;
+    font-weight: 700;
+    letter-spacing: 0.3px;
+  }
+
+  #ticker-text .tag {
+    color: #00bd00;
+    margin-right: 10px;
+    text-shadow: 0 0 10px rgba(0, 189, 0, 0.9);
+  }
+</style>
+</head>
+<body>
+  <div id="ticker-bar">
+    <div id="ticker-scroll">
+      <span id="ticker-text"></span>
+    </div>
+  </div>
+
+<script>
+(() => {
+  // ====== CONFIG ======
+  const SCROLL_SPEED_PX_PER_SEC = 160;
+  const RETRY_DELAY_MS = 5000;
+  // =====================
+
+  const bar = document.getElementById('ticker-bar');
+  const tickerText = document.getElementById('ticker-text');
+
+  let items = [];
+  let index = 0;
+  let running = false;
+
+  function loadInfo() {
+    fetch('/info')
+      .then((r) => (r.ok ? r.json() : { items: [] }))
+      .then((data) => {
+        items = (data && data.items) || [];
+        kick();
+      })
+      .catch(() => {
+        setTimeout(loadInfo, RETRY_DELAY_MS);
+      });
+  }
+  loadInfo();
+  setInterval(loadInfo, 60 * 60 * 1000);
+
+  function kick() {
+    if (running || !items.length) return;
+    running = true;
+    step();
+  }
+
+  async function step() {
+    if (!items.length) {
+      running = false;
+      return;
+    }
+    const item = items[index % items.length];
+    index += 1;
+    await playItem(item);
+    step();
+  }
+
+  function resetAnimations() {
+    tickerText.getAnimations().forEach((a) => a.cancel());
+  }
+
+  function playItem(item) {
+    return new Promise((resolve) => {
+      resetAnimations();
+      const text = (item && item.text) || '';
+      tickerText.innerHTML = `<span class="tag">🟢</span>${escapeHtml(text)}`;
+
+      const barWidth = bar.getBoundingClientRect().width;
+      const textWidth = tickerText.getBoundingClientRect().width;
+      const distance = barWidth + textWidth;
+      const durationMs = Math.max(1500, (distance / SCROLL_SPEED_PX_PER_SEC) * 1000);
+
+      const anim = tickerText.animate(
+        [
+          { transform: `translateX(${barWidth}px)` },
+          { transform: `translateX(-${textWidth}px)` },
+        ],
+        { duration: durationMs, easing: 'linear', fill: 'forwards' }
+      );
+      anim.onfinish = resolve;
+      anim.oncancel = resolve;
+    });
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+})();
+</script>
+</body>
+</html>
