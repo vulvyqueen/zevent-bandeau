@@ -1,0 +1,15 @@
+{
+  "name": "zevent-bandeau",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Bandeau overlay OBS dedie au ZEvent (independant du bandeau de stream habituel)",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
