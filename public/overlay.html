@@ -3,143 +3,173 @@
 <head>
 <meta charset="UTF-8">
 <title>Bandeau ZEvent</title>
-<link rel="preconnect" href="https://api.fontshare.com">
-<link href="https://api.fontshare.com/v2/css?f[]=switzer@400,500,600,700,800&display=swap" rel="stylesheet">
 <style>
-  html, body {
-    margin: 0;
-    padding: 0;
-    background: transparent;
-    overflow: hidden;
-    width: 100vw;
-    height: 100vh;
-    font-family: 'Switzer', 'Segoe UI', Arial, sans-serif;
-  }
-
-  #ticker-bar {
-    position: fixed;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    height: 56px;
-    background: linear-gradient(90deg, rgba(0,0,0,0.72), rgba(6,20,6,0.72), rgba(0,0,0,0.72));
-    border-top: 3px solid #00bd00;
-    box-shadow: 0 -2px 14px rgba(0, 189, 0, 0.35);
-    display: flex;
-    align-items: center;
-    overflow: hidden;
-    box-sizing: border-box;
-  }
-
-  #ticker-scroll {
-    white-space: nowrap;
-    width: 100%;
-    height: 100%;
-    display: flex;
-    align-items: center;
-  }
-
-  #ticker-text {
-    display: inline-block;
-    color: #fff;
-    font-family: 'Switzer', 'Segoe UI', Arial, sans-serif;
-    font-size: 25px;
-    font-weight: 700;
-    letter-spacing: 0.3px;
-  }
-
-  #ticker-text .tag {
-    color: #00bd00;
-    margin-right: 10px;
-    text-shadow: 0 0 10px rgba(0, 189, 0, 0.9);
-  }
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  background: transparent;
+  overflow: hidden;
+  font-family: 'Segoe UI', Arial, sans-serif;
+}
+#ticker-bar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 56px;
+  overflow: hidden;
+  background: linear-gradient(90deg, rgba(0,0,0,0.85), rgba(6,20,6,0.85), rgba(0,0,0,0.85));
+  border-top: 3px solid #00bd00;
+  box-shadow: 0 -2px 14px rgba(0, 189, 0, 0.35);
+}
+#ticker-track {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  white-space: nowrap;
+  will-change: transform;
+}
+#ticker-track .item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 0 40px;
+}
+.tag {
+  font-size: 20px;
+}
+#ticker-track .item .txt {
+  font-family: 'Arial Black', 'Segoe UI', Arial, sans-serif;
+  font-weight: 900;
+  font-size: 22px;
+  color: #ffffff;
+  text-shadow: 0 0 8px rgba(0, 189, 0, 0.65);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.asso-logo {
+  height: 34px;
+  max-width: 140px;
+  width: auto;
+  object-fit: contain;
+  background: #ffffff;
+  border-radius: 4px;
+  padding: 2px 6px;
+}
+.asso-name {
+  font-family: 'Segoe UI', Arial, sans-serif;
+  font-weight: bold;
+  font-size: 19px;
+  color: #d9ffd9;
+}
 </style>
 </head>
 <body>
-  <div id="ticker-bar">
-    <div id="ticker-scroll">
-      <span id="ticker-text"></span>
-    </div>
-  </div>
-
+<div id="ticker-bar">
+  <div id="ticker-track"></div>
+</div>
 <script>
-(() => {
-  // ====== CONFIG ======
-  const SCROLL_SPEED_PX_PER_SEC = 160;
-  const RETRY_DELAY_MS = 5000;
-  // =====================
+const track = document.getElementById('ticker-track');
+const bar = document.getElementById('ticker-bar');
+let items = [];
+let idx = 0;
+let currentAnim = null;
 
-  const bar = document.getElementById('ticker-bar');
-  const tickerText = document.getElementById('ticker-text');
-
-  let items = [];
-  let index = 0;
-  let running = false;
-
-  function loadInfo() {
-    fetch('/info')
-      .then((r) => (r.ok ? r.json() : { items: [] }))
-      .then((data) => {
-        items = (data && data.items) || [];
-        kick();
-      })
-      .catch(() => {
-        setTimeout(loadInfo, RETRY_DELAY_MS);
-      });
-  }
-  loadInfo();
-  setInterval(loadInfo, 60 * 60 * 1000);
-
-  function kick() {
-    if (running || !items.length) return;
-    running = true;
-    step();
-  }
-
-  async function step() {
-    if (!items.length) {
-      running = false;
-      return;
+async function fetchItems() {
+  try {
+    const res = await fetch('/info');
+    const data = await res.json();
+    if (data && Array.isArray(data.items) && data.items.length) {
+      items = data.items;
     }
-    const item = items[index % items.length];
-    index += 1;
-    await playItem(item);
-    step();
+  } catch (e) {
+    console.error('Erreur /info', e);
   }
+}
 
-  function resetAnimations() {
-    tickerText.getAnimations().forEach((a) => a.cancel());
-  }
-
-  function playItem(item) {
+function waitForImages(container) {
+  const imgs = Array.from(container.querySelectorAll('img'));
+  if (!imgs.length) return Promise.resolve();
+  return Promise.all(imgs.map((img) => {
+    if (img.complete) return Promise.resolve();
     return new Promise((resolve) => {
-      resetAnimations();
-      const text = (item && item.text) || '';
-      tickerText.innerHTML = `<span class="tag">🟢</span>${escapeHtml(text)}`;
-
-      const barWidth = bar.getBoundingClientRect().width;
-      const textWidth = tickerText.getBoundingClientRect().width;
-      const distance = barWidth + textWidth;
-      const durationMs = Math.max(1500, (distance / SCROLL_SPEED_PX_PER_SEC) * 1000);
-
-      const anim = tickerText.animate(
-        [
-          { transform: `translateX(${barWidth}px)` },
-          { transform: `translateX(-${textWidth}px)` },
-        ],
-        { duration: durationMs, easing: 'linear', fill: 'forwards' }
-      );
-      anim.onfinish = resolve;
-      anim.oncancel = resolve;
+      img.addEventListener('load', resolve, { once: true });
+      img.addEventListener('error', resolve, { once: true });
     });
+  }));
+}
+
+async function playItem(item) {
+  track.innerHTML = '';
+  const wrap = document.createElement('div');
+  wrap.className = 'item';
+
+  if (item.type === 'asso') {
+    const img = document.createElement('img');
+    img.className = 'asso-logo';
+    img.src = item.logo;
+    img.alt = item.text;
+    const name = document.createElement('span');
+    name.className = 'asso-name';
+    name.textContent = item.text;
+    wrap.appendChild(img);
+    wrap.appendChild(name);
+  } else {
+    const tag = document.createElement('span');
+    tag.className = 'tag';
+    tag.textContent = '\u{1F7E2}';
+    const txt = document.createElement('span');
+    txt.className = 'txt';
+    txt.textContent = item.text;
+    wrap.appendChild(tag);
+    wrap.appendChild(txt);
   }
 
-  function escapeHtml(str) {
-    const div = document.createElement('div');
-    div.textContent = str;
-    return div.innerHTML;
+  track.appendChild(wrap);
+  await waitForImages(track);
+
+  const barWidth = bar.clientWidth;
+  const trackWidth = track.scrollWidth;
+  const distance = barWidth + trackWidth;
+  const speed = 90;
+  const duration = Math.max(4000, (distance / speed) * 1000);
+
+  track.style.transform = `translateX(${barWidth}px)`;
+  if (currentAnim) currentAnim.cancel();
+  currentAnim = track.animate(
+    [
+      { transform: `translateX(${barWidth}px)` },
+      { transform: `translateX(-${trackWidth}px)` },
+    ],
+    { duration, easing: 'linear', fill: 'forwards' }
+  );
+
+  await currentAnim.finished.catch(() => {});
+}
+
+async function loop() {
+  if (!items.length) {
+    await fetchItems();
   }
-})();
+  if (!items.length) {
+    setTimeout(loop, 2000);
+    return;
+  }
+  const item = items[idx % items.length];
+  idx += 1;
+  if (idx % items.length === 0) {
+    fetchItems();
+  }
+  await playItem(item);
+  loop();
+}
+
+fetchItems().then(loop);
 </script>
 </body>
 </html>
