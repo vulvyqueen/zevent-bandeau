@@ -96,101 +96,98 @@ html, body {
 </div>
 <script>
 const track = document.getElementById('ticker-track');
-const bar = document.getElementById('ticker-bar');
-let items = [];
-let idx = 0;
-let currentAnim = null;
+  const bar = document.getElementById('ticker-bar');
+  let items = [];
+  let currentAnim = null;
 
-async function fetchItems() {
-  try {
-    const res = await fetch('/info');
-    const data = await res.json();
-    if (data && Array.isArray(data.items) && data.items.length) {
-      items = data.items;
+  async function fetchItems() {
+    try {
+      const res = await fetch('/info');
+      const data = await res.json();
+      if (data && Array.isArray(data.items) && data.items.length) {
+        items = data.items;
+      }
+    } catch (e) {
+      console.error('Erreur /info', e);
     }
-  } catch (e) {
-    console.error('Erreur /info', e);
-  }
-}
-
-function waitForImages(container) {
-  const imgs = Array.from(container.querySelectorAll('img'));
-  if (!imgs.length) return Promise.resolve();
-  return Promise.all(imgs.map((img) => {
-    if (img.complete) return Promise.resolve();
-    return new Promise((resolve) => {
-      img.addEventListener('load', resolve, { once: true });
-      img.addEventListener('error', resolve, { once: true });
-    });
-  }));
-}
-
-async function playItem(item) {
-  track.innerHTML = '';
-  const wrap = document.createElement('div');
-  wrap.className = 'item';
-
-  if (item.type === 'asso') {
-    const img = document.createElement('img');
-    img.className = 'asso-logo';
-    img.src = item.logo;
-    img.alt = item.text;
-    const name = document.createElement('span');
-    name.className = 'asso-name';
-    name.textContent = item.text;
-    wrap.appendChild(img);
-    wrap.appendChild(name);
-  } else {
-    const tag = document.createElement('span');
-    tag.className = 'tag';
-    tag.textContent = '\u{1F7E2}';
-    const txt = document.createElement('span');
-    txt.className = 'txt';
-    txt.textContent = item.text;
-    wrap.appendChild(tag);
-    wrap.appendChild(txt);
   }
 
-  track.appendChild(wrap);
-  await waitForImages(track);
+  function waitForImages(container) {
+    const imgs = Array.from(container.querySelectorAll('img'));
+    if (!imgs.length) return Promise.resolve();
+    return Promise.all(imgs.map((img) => {
+      if (img.complete) return Promise.resolve();
+      return new Promise((resolve) => {
+        img.addEventListener('load', resolve, { once: true });
+        img.addEventListener('error', resolve, { once: true });
+      });
+    }));
+  }
 
-  const barWidth = bar.clientWidth;
-  const trackWidth = track.scrollWidth;
-  const distance = barWidth + trackWidth;
-  const speed = 90;
-  const duration = Math.max(4000, (distance / speed) * 1000);
+  function buildItemEl(item) {
+    const wrap = document.createElement('div');
+    wrap.className = 'item';
+    if (item.type === 'asso') {
+      const img = document.createElement('img');
+      img.className = 'asso-logo';
+      img.src = item.logo;
+      img.alt = item.text;
+      const name = document.createElement('span');
+      name.className = 'asso-name';
+      name.textContent = item.text;
+      wrap.appendChild(img);
+      wrap.appendChild(name);
+    } else {
+      const tag = document.createElement('span');
+      tag.className = 'tag';
+      tag.textContent = '\u{1F7E2}';
+      const txt = document.createElement('span');
+      txt.className = 'txt';
+      txt.textContent = item.text;
+      wrap.appendChild(tag);
+      wrap.appendChild(txt);
+    }
+    return wrap;
+  }
 
-  track.style.transform = `translateX(${barWidth}px)`;
-  if (currentAnim) currentAnim.cancel();
-  currentAnim = track.animate(
-    [
-      { transform: `translateX(${barWidth}px)` },
-      { transform: `translateX(-${trackWidth}px)` },
-    ],
-    { duration, easing: 'linear', fill: 'forwards' }
-  );
+  async function buildTrack() {
+    if (currentAnim) {
+      currentAnim.cancel();
+      currentAnim = null;
+    }
+    track.innerHTML = '';
+    track.style.transform = 'translateX(0px)';
+    if (!items.length) return;
 
-  await currentAnim.finished.catch(() => {});
-}
+    items.forEach((item) => track.appendChild(buildItemEl(item)));
+    await waitForImages(track);
 
-async function loop() {
-  if (!items.length) {
+    const singleWidth = track.scrollWidth;
+
+    items.forEach((item) => track.appendChild(buildItemEl(item)));
+
+    const speed = 90;
+    const duration = Math.max(4000, (singleWidth / speed) * 1000);
+
+    currentAnim = track.animate(
+      [
+        { transform: 'translateX(0px)' },
+        { transform: `translateX(-${singleWidth}px)` },
+        ],
+      { duration, easing: 'linear', iterations: Infinity }
+      );
+  }
+
+  async function init() {
     await fetchItems();
+    await buildTrack();
+    setInterval(async () => {
+      await fetchItems();
+      await buildTrack();
+    }, 120000);
   }
-  if (!items.length) {
-    setTimeout(loop, 2000);
-    return;
-  }
-  const item = items[idx % items.length];
-  idx += 1;
-  if (idx % items.length === 0) {
-    fetchItems();
-  }
-  await playItem(item);
-  loop();
-}
 
-fetchItems().then(loop);
+  init();
 </script>
 </body>
 </html>
