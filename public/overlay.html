@@ -88,6 +88,22 @@ html, body {
   font-size: 19px;
   color: #d9ffd9;
 }
+  .item.priority {
+    background: rgba(0, 189, 0, 0.18);
+    border-radius: 6px;
+  }
+  .item.priority.donation .txt {
+    color: #FFD700;
+    font-weight: 800;
+    text-shadow: 0 0 10px rgba(255, 215, 0, 0.6);
+  }
+  .item.priority.pin .txt {
+    color: #ffffff;
+    font-weight: 800;
+  }
+  .item.priority .tag {
+    font-size: 22px;
+  }
 </style>
 </head>
 <body>
@@ -125,6 +141,7 @@ const track = document.getElementById('ticker-track');
   }
 
   function buildItemEl(item) {
+    if (item.live) return buildPriorityItemEl(item);
     const wrap = document.createElement('div');
     wrap.className = 'item';
     if (item.type === 'asso') {
@@ -178,7 +195,58 @@ const track = document.getElementById('ticker-track');
       );
   }
 
+  function buildPriorityItemEl(msg) {
+    const wrap = document.createElement('div');
+    wrap.className = 'item priority';
+    if (msg.kind === 'donation') {
+      wrap.classList.add('donation');
+      const tag = document.createElement('span');
+      tag.className = 'tag';
+      tag.textContent = '\u{1F49A}';
+      const txt = document.createElement('span');
+      txt.className = 'txt';
+      const amount = msg.amount ? ' (' + msg.amount + ')' : '';
+      const quote = msg.text ? ' : "' + msg.text + '"' : '';
+      txt.textContent = 'Don de ' + msg.author + amount + quote;
+      wrap.appendChild(tag);
+      wrap.appendChild(txt);
+    } else {
+      wrap.classList.add('pin');
+      const tag = document.createElement('span');
+      tag.className = 'tag';
+      tag.textContent = '\u{1F4CC}';
+      const txt = document.createElement('span');
+      txt.className = 'txt';
+      const author = msg.author ? msg.author + ' : ' : '';
+      txt.textContent = author + msg.text;
+      wrap.appendChild(tag);
+      wrap.appendChild(txt);
+    }
+    return wrap;
+  }
+
+  async function handleLiveMessage(msg) {
+    items = [Object.assign({}, msg, { live: true }), ...items];
+    await buildTrack();
+  }
+
+  function connectWS() {
+    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const ws = new WebSocket(proto + '//' + location.host + '/ws');
+    ws.addEventListener('message', (evt) => {
+      try {
+        const msg = JSON.parse(evt.data);
+        handleLiveMessage(msg);
+      } catch (e) {
+        console.error('Message WS invalide', e);
+      }
+    });
+    ws.addEventListener('close', () => setTimeout(connectWS, 3000));
+    ws.addEventListener('error', () => ws.close());
+  }
+
   async function init() {
+    connectWS();
     await fetchItems();
     await buildTrack();
     setInterval(async () => {
