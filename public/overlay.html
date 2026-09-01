@@ -125,6 +125,7 @@ html, body {
 const track = document.getElementById('ticker-track');
   const bar = document.getElementById('ticker-bar');
   let items = [];
+  let liveDonations = [];
   let currentAnim = null;
 
   async function fetchItems() {
@@ -198,14 +199,16 @@ const track = document.getElementById('ticker-track');
     }
     track.innerHTML = '';
     track.style.transform = 'translateX(0px)';
-    if (!items.length) return;
+    const donationItems = liveDonations.map((d) => Object.assign({}, d, { live: true }));
+    const allItems = donationItems.concat(items);
+    if (!allItems.length) return;
 
-    items.forEach((item) => track.appendChild(buildItemEl(item)));
+    allItems.forEach((item) => track.appendChild(buildItemEl(item)));
     await waitForImages(track);
 
     const singleWidth = track.scrollWidth;
 
-    items.forEach((item) => track.appendChild(buildItemEl(item)));
+    allItems.forEach((item) => track.appendChild(buildItemEl(item)));
 
     const speed = 90;
     const duration = Math.max(4000, (singleWidth / speed) * 1000);
@@ -250,7 +253,11 @@ const track = document.getElementById('ticker-track');
   }
 
   async function handleLiveMessage(msg) {
-    items = [Object.assign({}, msg, { live: true }), ...items];
+    if (msg.kind === 'donation') {
+      liveDonations = [msg].concat(liveDonations).slice(0, 20);
+    } else {
+      items = [Object.assign({}, msg, { live: true })].concat(items);
+    }
     await buildTrack();
   }
 
