@@ -3,7 +3,7 @@
 // endpoint /message securise (utilise par Mix It Up pour les messages
 // epingles des modos et les recompenses de points de chaine), et une
 // connexion directe a l'API Socket de Streamlabs pour les alertes de dons
-// ZEvent (avec le message du donateur).
+// ZEvent Charity uniquement (dons recus sur l'espace personnel ZEvent).
 
 require('dotenv').config();
 
@@ -65,7 +65,10 @@ app.post('/message', (req, res) => {
   res.json({ ok: true, id: message.id });
 });
 
-// Alertes de dons ZEvent : connexion directe a l'API Socket de Streamlabs.
+// Alertes de dons ZEvent Charity : connexion directe a l'API Socket de
+// Streamlabs. On n'ecoute QUE l'evenement "streamlabscharitydonation"
+// (dons recus via l'espace personnel ZEvent), pas les dons Streamlabs
+// classiques hors ZEvent.
 function connectStreamlabs() {
   if (!STREAMLABS_SOCKET_TOKEN) {
     console.log('STREAMLABS_SOCKET_TOKEN absent : alertes de dons desactivees.');
@@ -76,7 +79,7 @@ function connectStreamlabs() {
   });
 
 socket.on('connect', () => {
-  console.log('Connecte a Streamlabs : alertes de dons actives.');
+  console.log('Connecte a Streamlabs : alertes de dons ZEvent Charity actives.');
 });
   socket.on('disconnect', () => {
     console.log('Deconnecte de Streamlabs, tentative de reconnexion automatique...');
@@ -86,15 +89,15 @@ socket.on('connect', () => {
   });
 
 socket.on('event', (eventData) => {
-  if (!eventData || eventData.type !== 'donation') return;
+  if (!eventData || eventData.type !== 'streamlabscharitydonation') return;
   const donations = Array.isArray(eventData.message) ? eventData.message : [eventData.message];
   donations.forEach((don) => {
     if (!don) return;
     broadcast({
       id: crypto.randomUUID(),
       kind: 'donation',
-      author: (don.name || 'Anonyme').toString().slice(0, 40),
-      amount: (don.formatted_amount || ((don.amount || '') + ' ' + (don.currency || ''))).toString().trim(),
+      author: (don.from || 'Anonyme').toString().slice(0, 40),
+      amount: (don.formattedAmount || don.formatted_amount || ((don.amount || '') + ' ' + (don.currency || ''))).toString().trim(),
       text: (don.message || '').toString().slice(0, 200),
       ts: Date.now(),
     });
