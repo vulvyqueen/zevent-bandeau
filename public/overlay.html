@@ -104,6 +104,17 @@ html, body {
   .item.priority .tag {
     font-size: 22px;
   }
+  .item.donation-counter {
+    gap: 10px;
+  }
+  .item.donation-counter .tag {
+    font-size: 20px;
+  }
+  .item.donation-counter iframe {
+    border: none;
+    background: transparent;
+    display: block;
+  }
 </style>
 </head>
 <body>
@@ -154,6 +165,19 @@ const track = document.getElementById('ticker-track');
       name.textContent = item.text;
       wrap.appendChild(img);
       wrap.appendChild(name);
+    } else if (item.type === 'donation-counter') {
+      const label = document.createElement('span');
+      label.className = 'tag';
+      label.textContent = item.text || '';
+      const frame = document.createElement('iframe');
+      frame.src = item.url;
+      frame.width = item.width || 260;
+      frame.height = 56;
+      frame.setAttribute('scrolling', 'no');
+      frame.setAttribute('frameborder', '0');
+      wrap.classList.add('donation-counter');
+      wrap.appendChild(label);
+      wrap.appendChild(frame);
     } else {
       const tag = document.createElement('span');
       tag.className = 'tag';
