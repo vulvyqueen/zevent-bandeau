@@ -19,6 +19,11 @@ const ZEVENT_CTA = [
   "Chaque don compte, merci de soutenir la cagnotte : zevent.fr/don/vulvyqueen",
 ];
 
+const ZEVENT_COUNTERS = [
+  { type: 'donation-counter', text: 'Ma cagnotte perso', url: 'https://app.zevent.fr/embed/donation?textAlign=center&font=Antique+Olive&size=60&weight=700&color=%23ffffff&streamer=vulvyqueen&target=streamer', width: 300 },
+  { type: 'donation-counter', text: 'Cagnotte globale ZEvent', url: 'https://app.zevent.fr/embed/donation?textAlign=right&font=Antique+Olive&size=40&weight=700&color=%23ffffff&streamer=vulvyqueen&target=global', width: 260 },
+  ];
+
 // Associations beneficiaires (logos + noms recuperes depuis le Drive ZEvent
 // fourni par l'organisation). Les logos sont embarques en base64 dans
 // logos.js -- l'overlay affiche le logo + le nom dans le bandeau.
@@ -61,6 +66,7 @@ function getInfoItems() {
   const items = [];
   ZEVENT_DATES.forEach((text) => items.push({ type: 'text', text, variant: 'zevent' }));
   ZEVENT_CTA.forEach((text) => items.push({ type: 'text', text, variant: 'zevent' }));
+  ZEVENT_COUNTERS.forEach((item) => items.push(item));
 
 const withAssos = [];
   let a = 0;
