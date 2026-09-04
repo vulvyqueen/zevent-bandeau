@@ -129,21 +129,28 @@ html, body {
 <script>
 const track = document.getElementById('ticker-track');
   const bar = document.getElementById('ticker-bar');
-  let items = [];
-  let liveDonations = [];
-  let currentAnim = null;
+let items = [];
+        let liveDonations = [];
+        let currentAnim = null;
+        let lastItemsSnapshot = '';
 
-  async function fetchItems() {
-    try {
-      const res = await fetch('/info');
-      const data = await res.json();
-      if (data && Array.isArray(data.items) && data.items.length) {
-        items = data.items;
-      }
-    } catch (e) {
-      console.error('Erreur /info', e);
-    }
-  }
+        async function fetchItems() {
+                  try {
+                              const res = await fetch('/info');
+                              const data = await res.json();
+                              if (data && Array.isArray(data.items) && data.items.length) {
+                                            const next = JSON.stringify(data.items);
+                                            if (next !== lastItemsSnapshot) {
+                                                            lastItemsSnapshot = next;
+                                                            items = data.items;
+                                                            return true;
+                                            }
+                              }
+                  } catch (e) {
+                              console.error('Erreur /info', e);
+                  }
+                  return false;
+        }
 
   function waitForImages(container) {
     const imgs = Array.from(container.querySelectorAll('img'));
@@ -197,35 +204,43 @@ const track = document.getElementById('ticker-track');
     return wrap;
   }
 
-  async function buildTrack() {
-    if (currentAnim) {
-      currentAnim.cancel();
-      currentAnim = null;
-    }
-    track.innerHTML = '';
-    track.style.transform = 'translateX(0px)';
-    const donationItems = liveDonations.map((d) => Object.assign({}, d, { live: true }));
-    const allItems = donationItems.concat(items);
-    if (!allItems.length) return;
+async function buildTrack() {
+        let resumeAt = 0;
+        if (currentAnim) {
+                  const timing = currentAnim.effect && currentAnim.effect.getComputedTiming();
+                  if (timing && typeof timing.progress === 'number' && timing.progress >= 0) {
+                              resumeAt = timing.progress;
+                  }
+                  currentAnim.cancel();
+                  currentAnim = null;
+        }
+        track.innerHTML = '';
+        track.style.transform = 'translateX(0px)';
+        const donationItems = liveDonations.map((d) => Object.assign({}, d, { live: true }));
+        const allItems = donationItems.concat(items);
+        if (!allItems.length) return;
 
-    allItems.forEach((item) => track.appendChild(buildItemEl(item)));
-    await waitForImages(track);
+        allItems.forEach((item) => track.appendChild(buildItemEl(item)));
+        await waitForImages(track);
 
-    const singleWidth = track.scrollWidth;
+        const singleWidth = track.scrollWidth;
 
-    allItems.forEach((item) => track.appendChild(buildItemEl(item)));
+        allItems.forEach((item) => track.appendChild(buildItemEl(item)));
 
-    const speed = 90;
-    const duration = Math.max(4000, (singleWidth / speed) * 1000);
+        const speed = 90;
+        const duration = Math.max(4000, (singleWidth / speed) * 1000);
 
-    currentAnim = track.animate(
-      [
-        { transform: 'translateX(0px)' },
-        { transform: `translateX(-${singleWidth}px)` },
-        ],
-      { duration, easing: 'linear', iterations: Infinity }
-      );
-  }
+        currentAnim = track.animate(
+                  [
+                    { transform: 'translateX(0px)' },
+                    { transform: `translateX(-${singleWidth}px)` },
+                            ],
+          { duration, easing: 'linear', iterations: Infinity }
+                );
+        if (resumeAt > 0) {
+                  currentAnim.currentTime = resumeAt * duration;
+        }
+}
 
   function buildPriorityItemEl(msg) {
     const wrap = document.createElement('div');
@@ -281,15 +296,17 @@ const track = document.getElementById('ticker-track');
     ws.addEventListener('error', () => ws.close());
   }
 
-  async function init() {
-    connectWS();
-    await fetchItems();
-    await buildTrack();
-    setInterval(async () => {
-      await fetchItems();
-      await buildTrack();
-    }, 120000);
-  }
+async function init() {
+        connectWS();
+        await fetchItems();
+        await buildTrack();
+        setInterval(async () => {
+                  const changed = await fetchItems();
+                  if (changed) {
+                              await buildTrack();
+                  }
+        }, 120000);
+}
 
   init();
 </script>
