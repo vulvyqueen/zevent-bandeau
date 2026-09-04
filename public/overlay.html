@@ -254,7 +254,7 @@ const track = document.getElementById('ticker-track');
 
   async function handleLiveMessage(msg) {
     if (msg.kind === 'donation') {
-      liveDonations = [msg].concat(liveDonations).slice(0, 20);
+      liveDonations = [msg].concat(liveDonations).slice(0, 200);
     } else {
       items = [Object.assign({}, msg, { live: true })].concat(items);
     }
