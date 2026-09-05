@@ -21,6 +21,41 @@ const AUTH_TOKEN = process.env.AUTH_TOKEN;
 const STREAMLABS_SOCKET_TOKEN = process.env.STREAMLABS_SOCKET_TOKEN;
 const MAX_TEXT_LENGTH = 300;
 
+// Dons ZEvent Charity reinjectes manuellement (historique recupere depuis
+// Streamlabs > Evenements recents : ces dons ne sont pas persistes cote
+// serveur). Rejoues a chaque connexion WebSocket pour survivre aux
+// redemarrages (veille Render, redeploiement...). Les ids fixes evitent les
+// doublons cote client si une meme page se reconnecte plusieurs fois.
+const SEED_DONATIONS = [
+  { id: 'seed-1', author: 'xaxax', amount: '€15.00', text: '' },
+  { id: 'seed-2', author: 'SkYl0r', amount: '€10.00', text: 'Je suis encore la...' },
+  { id: 'seed-3', author: 'SkYl0r', amount: '€15.00', text: 'voila' },
+  { id: 'seed-4', author: 'SkYl0r', amount: '€200.00', text: "C'est repartie pour la pomme ?" },
+  { id: 'seed-5', author: 'Jacques Chirac', amount: '€200.00', text: 'Mangez des pommes !!!' },
+  { id: 'seed-6', author: 'Huns', amount: '€500.00', text: 'POUR LA DEEEEEEER' },
+  { id: 'seed-7', author: 'SkYl0r', amount: '€150.00', text: '....' },
+  { id: 'seed-8', author: 'Elooo <3', amount: '€100.00', text: '' },
+  { id: 'seed-9', author: 'cocaplie', amount: '€5.00', text: 'courage ma belle' },
+  { id: 'seed-10', author: 'k_psul', amount: '€1.67', text: "L'armee des 1, je suce des cailloux sur un coulis d'eau minerale, le grand luxe" },
+  ];
+
+function replaySeedDonations(client) {
+  SEED_DONATIONS.forEach((don, i) => {
+    setTimeout(() => {
+      if (client.readyState === client.OPEN) {
+        client.send(JSON.stringify({
+          id: don.id,
+          kind: 'donation',
+          author: don.author,
+          amount: don.amount,
+          text: don.text,
+          ts: Date.now(),
+        }));
+      }
+    }, i * 80);
+  });
+}
+
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -30,6 +65,10 @@ app.get('/info', (req, res) => {
 
 const server = http.createServer(app);
 const wss = new WebSocketServer({ server, path: '/ws' });
+
+wss.on('connection', (client) => {
+  replaySeedDonations(client);
+});
 
 function broadcast(payload) {
   const data = JSON.stringify(payload);
