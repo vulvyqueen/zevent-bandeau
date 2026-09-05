@@ -274,7 +274,9 @@ async function buildTrack() {
 
   async function handleLiveMessage(msg) {
     if (msg.kind === 'donation') {
-      liveDonations = [msg].concat(liveDonations).slice(0, 200);
+      if (!msg.id || !liveDonations.some((d) => d.id === msg.id)) {
+        liveDonations = [msg].concat(liveDonations).slice(0, 200);
+      }
     } else {
       items = [Object.assign({}, msg, { live: true })].concat(items);
     }
